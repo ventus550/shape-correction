@@ -53,10 +53,10 @@ class DrawingCanvas(tk.Tk):
 		self.beziers.clear()
 	
 	def line(self, lin, width = 10):
-		self.canvas.create_line(lin, width=width)
+		self.canvas.create_line(lin, width=width, capstyle="round", joinstyle="round", smooth=True)
 		ImageDraw.Draw(self.image).line(lin, (0,0,0), width=width*3)
 	
-	def draw_bezier_curve(self, n = 50):
+	def draw_bezier_curve(self, n = 150):
 		p = self.beziers
 		start = p[0]
 
@@ -65,6 +65,9 @@ class DrawingCanvas(tk.Tk):
 			x, y = p[0] * (1-t)**3 + p[1] * 3 * t * (1-t)**2 + p[2] * 3 * t**2 * (1-t) + p[3] * t**3
 			self.line((x, y, start[0], start[1]))
 			start = array((x,y))
+		end = self.beziers[-1]
+		self.beziers.clear()
+		self.beziers.append(end)
 
 	def get_point(self, e):
 		self.beziers.append(array((e.x, e.y)))
