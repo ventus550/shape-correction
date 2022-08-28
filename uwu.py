@@ -2,7 +2,8 @@ import numpy as np
 import tkinter as tk
 from tkinter import Canvas
 from collections import deque
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
+import torchvision.transforms as transforms
 
 def add_margin(pil_img, margin, color = 3 * (255,)):
 	shape = np.array(pil_img.size)
@@ -66,7 +67,8 @@ class DrawingCanvas(tk.Tk):
 
 	def on_mouse_release(self, _):
 		print(self.region)
-		add_margin(self.image.crop(self.region), 50).save("uwu.png")
+		img = ImageOps.invert(add_margin(self.image.crop(self.region), 50).resize((70, 70)))
+		img.save("uwu.png")
 
 piechart = DrawingCanvas()
 piechart.mainloop()
