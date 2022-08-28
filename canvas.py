@@ -1,13 +1,12 @@
-import numpy as np
 import tkinter as tk
 from tkinter import Canvas
 from collections import deque
 from PIL import Image, ImageDraw, ImageOps
-from numpy import argmax
+from numpy import argmax, array
 import tensorflow as tf
 
 def add_margin(pil_img, margin, color = 3 * (255,)):
-	shape = np.array(pil_img.size)
+	shape = array(pil_img.size)
 	shape += 2*margin
 	result = Image.new(pil_img.mode, tuple(shape), color)
 	result.paste(pil_img, (margin, margin))
@@ -65,10 +64,10 @@ class DrawingCanvas(tk.Tk):
 			t = i / n
 			x, y = p[0] * (1-t)**3 + p[1] * 3 * t * (1-t)**2 + p[2] * 3 * t**2 * (1-t) + p[3] * t**3
 			self.line((x, y, start[0], start[1]))
-			start = np.array((x,y))
+			start = array((x,y))
 
 	def get_point(self, e):
-		self.beziers.append(np.array((e.x, e.y)))
+		self.beziers.append(array((e.x, e.y)))
 		x, y, X, Y = self.region
 		m = 10
 		self.region = [
@@ -99,7 +98,7 @@ class DrawingCanvas(tk.Tk):
 		elif clss == "triangle":
 			x, y, X, Y = points
 			points = [(x + X) // 2, y, x, Y, X, Y]
-			self.canvas.create_polygon(*points, width=14)
+			self.canvas.create_polygon(*points, fill="white", outline="black", width=14)
 
 	def on_mouse_release(self, _):
 		img = self.classifier.preprocess_image(self.get_image())
