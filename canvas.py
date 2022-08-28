@@ -109,5 +109,5 @@ class DrawingCanvas(tk.Tk):
 			self.draw_classified_shape(clss)
 
 
-piechart = DrawingCanvas()
-piechart.mainloop()
+if __name__ == "__main__":
+	DrawingCanvas().mainloop()
