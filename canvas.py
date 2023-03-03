@@ -1,116 +1,123 @@
 import tkinter as tk
-from tkinter import Canvas
-from collections import deque
-from PIL import Image, ImageDraw, ImageOps
-from numpy import argmax, array
-import tensorflow as tf
+import threading
+import numpy as np
+from PIL import Image, ImageDraw
+from itertools import chain
 
-def add_margin(pil_img, margin, color = 3 * (255,)):
-	shape = array(pil_img.size)
-	shape += 2*margin
-	result = Image.new(pil_img.mode, tuple(shape), color)
-	result.paste(pil_img, (margin, margin))
-	return result
+class Canvas(threading.Thread):
+	def __init__(self, width=1200, height=1200):
+		threading.Thread.__init__(self)
+		self.lock = threading.RLock()
+		self.start()
 
-class Classifier:
-	def __init__(self, path):
-		self.model = tf.keras.models.load_model(path)
-		self.shapes = ['other', 'ellipse', 'rectangle', 'triangle']
-
-	def preprocess_image(self, image):
-		return ImageOps.grayscale(ImageOps.invert(image)).resize((70, 70))
-
-	def get_distribution(self, image):
-		image = tf.keras.preprocessing.image.img_to_array(image) / 255.0
-		tensor = tf.constant((image, ))
-		return self.model(tensor)
-
-	def classify(self, image):
-		dist = self.get_distribution(image)
-		return self.shapes[argmax(dist)]
-
-class DrawingCanvas(tk.Tk):
-	def __init__(self, width = 1200, height = 1200):
-		super().__init__()
 		self.width = width
 		self.height = height
-		self.classifier = Classifier("model")
+		self.history = []
+		self.stroke_color = "black"
+		self.stroke_width = 10
+		self.lock.acquire()
+	
+	def callback(self):
+		self.root.quit()
 
-		self.canvas = Canvas(self, bg="white", width=width, height=height)
+	def run(self):
+		self.lock.acquire()
+		self.root = tk.Tk()
+		self.root.protocol("WM_DELETE_WINDOW", self.callback)
+
+		self.canvas = tk.Canvas(self.root, bg="white", width=self.width, height=self.height)
 		self.canvas.pack(expand=1, fill=tk.BOTH)
+		self.context = self._make_context()
 
-		self.beziers = deque([], maxlen=4)
-		self.reset()
+		self.lock.release()
+		self.root.mainloop()
 
-		self.canvas.bind('<B1-Motion>', self.on_mouse_drag)
-		self.canvas.bind('<ButtonRelease-1>', self.on_mouse_release)
-		self.canvas.bind('<ButtonPress-1>', self.on_mouse_down)
-	
-	def reset(self):
+	def clear(self):
 		self.canvas.delete("all")
-		self.image = Image.new("RGB", (self.width, self.height), (255, 255, 255))
-		self.region = (self.width, self.height, 0, 0)
-		self.beziers.clear()
+		self.context = self._make_context()
 	
-	def line(self, lin, width = 10):
-		self.canvas.create_line(lin, width=width, capstyle="round", joinstyle="round", smooth=True)
-		ImageDraw.Draw(self.image).line(lin, (0,0,0), width=width*3)
+	def flush(self):
+		self.history.clear()
+
+	def reset(self):
+		self.clear()
+		self.flush()
+
+	def line(self, x0: float, y0: float, x1: float, y1: float):
+		self.canvas.create_line(
+			x0, y0, x1, y1,
+			width=self.stroke_width,
+			capstyle="round",
+			joinstyle="round",
+			smooth=True
+		)
+		ImageDraw.Draw(self.context).line(
+			(x0, y0, x1, y1),
+			self.stroke_color,
+			self.stroke_width,
+			joint='curve'
+		)
+		sz = self.stroke_width / 2
+		ImageDraw.Draw(self.context).ellipse(
+			(x0 - sz,y0 - sz,x1 + sz,y1 + sz),
+			self.stroke_color
+		)
+
+	def curve(self, points: list[tuple[float, float]], spline=True):
+		points = list(np.array(points))
+		self.history.append(points)
+
+		if not spline:
+			self._draw_bezier_curve(points)
+
+		for i in range(4, len(points), 3):
+			points[i-1] = (points[i-2] + points[i]) / 2
+
+		for i in range(0, len(points), 3):
+			j = min(i+4, len(points))
+			self._draw_bezier_curve(points[i:j])
+
+	def point(self, x: float, y: float):
+		self.canvas.create_oval(
+			x, y, x, y,
+			fill=self.stroke_color,
+			outline=self.stroke_color,
+			width=self.stroke_width
+		)
 	
-	def draw_bezier_curve(self, n = 150):
-		p = self.beziers
-		start = p[0]
+	def register_mouse_move(self, f):
+		self.canvas.bind('<B1-Motion>', f)
 
-		for i in range(n):
-			t = i / n
-			x, y = p[0] * (1-t)**3 + p[1] * 3 * t * (1-t)**2 + p[2] * 3 * t**2 * (1-t) + p[3] * t**3
-			self.line((x, y, start[0], start[1]))
-			start = array((x,y))
-		end = self.beziers[-1]
-		self.beziers.clear()
-		self.beziers.append(end)
+	def register_mouse_press(self, f):
+		self.canvas.bind('<ButtonPress-1>', f)
 
-	def get_point(self, e):
-		self.beziers.append(array((e.x, e.y)))
-		x, y, X, Y = self.region
-		m = 10
-		self.region = [
-			min(x, max(e.x - m, 0)),
-			min(y, max(e.y - m, 0)),
-			max(X, min(e.x + m, self.width)),
-			max(Y, min(e.y + m, self.height))
-		]
+	def register_mouse_release(self, f):
+		self.canvas.bind('<ButtonRelease-1>', f)
 
-	def get_image(self, margin = 50):
-		return add_margin(self.image.crop(self.region), margin)
+	def capture(self, margin = None):
+		margin = margin or self.stroke_width*2
+		xy, XY = self._get_working_region()
+		size = (self.width, self.height)
+		xy = np.clip(xy - margin, 0, size)
+		XY = np.clip(XY + margin, 0, size)
+		img = self.context.crop((*xy, *XY))
+		return img, xy
 
-	def on_mouse_down(self, _):
-		self.reset()
+	def _make_context(self):
+		return Image.new("RGB", (self.width, self.height), (255, 255, 255))
 
-	def on_mouse_drag(self, e):
-		self.get_point(e)
-		if len(self.beziers) == 4:
-			self.draw_bezier_curve()
+	def _get_working_region(self):
+		if not self.history:
+			return np.array((0,0)), np.array((self.width, self.height))
+		points = np.array(list(chain(*self.history)))
+		return np.min(points, axis=0), np.max(points, axis=0)
 
-	def draw_classified_shape(self, clss):
-		points = self.region
-		self.reset()
-		if clss == "rectangle":
-			self.canvas.create_rectangle(*points, width=14)
-		elif clss == "ellipse":
-			self.canvas.create_oval(*points, width=14)
-		elif clss == "triangle":
-			x, y, X, Y = points
-			points = [(x + X) // 2, y, x, Y, X, Y]
-			self.canvas.create_polygon(*points, fill="white", outline="black", width=14)
+	def _draw_bezier_curve(self, points, n = 32):
+		def B(P, t):
+			if len(P) == 1: return P[0]
+			return (1-t)*B(P[:-1], t) + t*B(P[1:], t)
 
-	def on_mouse_release(self, _):
-		img = self.classifier.preprocess_image(self.get_image())
-		img.save("image.png")
-		clss = self.classifier.classify(img)
-		print(self.region, clss)
-		if clss != "other":
-			self.draw_classified_shape(clss)
-
-
-if __name__ == "__main__":
-	DrawingCanvas().mainloop()
+		p = points[0]
+		for t in np.linspace(0, 1, n):
+			p, q = B(points, t), p
+			self.line(*q, *p)
