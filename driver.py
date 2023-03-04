@@ -1,25 +1,7 @@
-from PIL import Image, ImageOps
-from numpy import argmax, nonzero
-import tensorflow as tf
+from models import Classifier, Regressor, transform
+from numpy import array, argmin
 from canvas import Canvas
 
-def preprocess_image(image: Image):
-	return ImageOps.grayscale(ImageOps.invert(image)).resize((70, 70))
-
-def img2tensor(image: Image):
-	image = tf.keras.preprocessing.image.img_to_array(image) #/ 255.0
-	image[nonzero(image)] = 1.0
-	return tf.constant((image,))
-
-class Classifier:
-	def __init__(self, path):
-		self.model = tf.keras.models.load_model(path, compile=False)
-		self.model.compile()
-		self.shapes = ['other', 'ellipse', 'rectangle', 'triangle']
-
-	def classify(self, image_tensor):
-		dist = self.model(image_tensor)
-		return self.shapes[argmax(dist)]
 
 class DrawingCanvas(Canvas):
 	def __init__(self, width=700, height=700):
@@ -28,9 +10,31 @@ class DrawingCanvas(Canvas):
 		self.register_mouse_press(self.on_click)
 		self.register_mouse_move(self.on_move)
 		self.register_mouse_release(self.on_release)
-		self.classifer = Classifier("classifier")
+		self.classifer = Classifier("models/classifier")
+		self.regressor = Regressor("models/rectangle_regressor")
+
+	def draw_vertices(self, vertices: list[float]):
+		self.stroke_color = 'red'
+		for v in vertices:
+			self.point(*v)
+
+	def connect(self, vertices):
+		#TODO
+		def dist(v, u): return sum((v - u)**2)
+		vertices = list(vertices)
+		first = v = vertices.pop()
+		while vertices:
+			u = vertices.pop(argmin([dist(u,v) for u in vertices]))
+			self.line(*v, *u)
+			v = u
+		self.line(*first, *v)
+
+	def reconstruct(self, vertices):
+		self.reset()
+		self.connect(vertices)
 
 	def on_click(self, _):
+		self.reset()
 		self.points.clear()
 
 	def on_move(self, e):
@@ -40,12 +44,19 @@ class DrawingCanvas(Canvas):
 		self.curve(self.points)
 
 	def on_release(self, _):
-		img, _ = self.capture()
+		img, xy = self.capture()
 		img.save("capture.png")
-		pimg = preprocess_image(img)
-		pimg.save("preprocessed_capture.png")
-		tensor = img2tensor(pimg)
-		print(self.classifer.classify(tensor))
+		pimg = transform(img)
+		pimg.save("transform.png")
+		
+		vertices = self.regressor.vertices(img)
+		vertices = array(vertices).reshape((len(vertices)//2, 2))
+		vertices *= img.size
+		vertices += xy
+
+		self.draw_vertices(vertices)
+		self.root.after(500, lambda: self.reconstruct(vertices))
+		print(self.classifer.classify(img))
 
 
 

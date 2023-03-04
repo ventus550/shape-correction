@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 from itertools import chain
 
+
 class Canvas(threading.Thread):
 	def __init__(self, width=1200, height=1200):
 		threading.Thread.__init__(self)
