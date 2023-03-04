@@ -1,7 +1,26 @@
 from models import Classifier, Regressor, transform
-from numpy import array, argmin
+from numpy import array, argmin, linalg, arccos, pi
 from canvas import Canvas
 
+import numpy as np
+def angle(a,b):
+    """ return rotation angle from vector a to vector b, in degrees.
+    Args:
+        a : np.array vector. format (x,y)
+        b : np.array vector. format (x,y)
+    Returns:
+        angle [float]: degrees. 0~360
+    """
+    unit_vector_1 = a / np.linalg.norm(a)
+    unit_vector_2 = b / np.linalg.norm(b)
+    dot_product = np.dot(unit_vector_1, unit_vector_2)
+    angle = np.arccos(dot_product)
+    angle = angle/ np.pi * 180
+    c = np.cross(b,a)
+    if c>0:
+        angle +=180
+    
+    return angle
 
 class DrawingCanvas(Canvas):
 	def __init__(self, width=700, height=700):
@@ -19,15 +38,13 @@ class DrawingCanvas(Canvas):
 			self.point(*v)
 
 	def connect(self, vertices):
-		#TODO
-		def dist(v, u): return sum((v - u)**2)
-		vertices = list(vertices)
-		first = v = vertices.pop()
-		while vertices:
-			u = vertices.pop(argmin([dist(u,v) for u in vertices]))
+		centroid = sum(vertices) / len(vertices)
+		angle = lambda v: np.arctan2(*(v - centroid))
+		vertices = sorted(vertices, key=angle)
+		
+		for v, u in zip(vertices, vertices[1:]):
 			self.line(*v, *u)
-			v = u
-		self.line(*first, *v)
+		self.line(*vertices[0], *u)
 
 	def reconstruct(self, vertices):
 		self.reset()
