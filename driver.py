@@ -46,6 +46,16 @@ class DrawingCanvas(Canvas):
 			self.line(*v, *u)
 		self.line(*vertices[0], *u)
 
+	def ellipse(self, vertices):
+		centroid = sum(vertices) / len(vertices)
+		angle = lambda v: np.arctan2(*(v - centroid))
+		vertices = sorted(vertices, key=angle)
+		
+		for v, u in zip(vertices, vertices[1:]):
+			x = v + u - centroid
+			self.curve([v, x, u])
+		self.curve([vertices[0], vertices[0] + u - centroid, u])
+
 	def reconstruct(self, vertices):
 		self.reset()
 		self.connect(vertices)
