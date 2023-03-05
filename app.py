@@ -1,26 +1,7 @@
-from models import Classifier, Regressor, transform
-from numpy import array, argmin, linalg, arccos, pi
-from canvas import Canvas
-
 import numpy as np
-def angle(a,b):
-    """ return rotation angle from vector a to vector b, in degrees.
-    Args:
-        a : np.array vector. format (x,y)
-        b : np.array vector. format (x,y)
-    Returns:
-        angle [float]: degrees. 0~360
-    """
-    unit_vector_1 = a / np.linalg.norm(a)
-    unit_vector_2 = b / np.linalg.norm(b)
-    dot_product = np.dot(unit_vector_1, unit_vector_2)
-    angle = np.arccos(dot_product)
-    angle = angle/ np.pi * 180
-    c = np.cross(b,a)
-    if c>0:
-        angle +=180
-    
-    return angle
+from canvas import Canvas
+from models import Classifier, Regressor, transform
+
 
 class DrawingCanvas(Canvas):
 	def __init__(self, width=700, height=700):
@@ -30,7 +11,11 @@ class DrawingCanvas(Canvas):
 		self.register_mouse_move(self.on_move)
 		self.register_mouse_release(self.on_release)
 		self.classifer = Classifier("models/classifier")
-		self.regressor = Regressor("models/rectangle_regressor")
+		self.regressors = {
+			"rectangle": Regressor("models/rectangle_regressor"),
+			"ellipse": Regressor("models/ellipse_regressor"),
+			"triangle": Regressor("models/triangle_regressor")
+		}
 
 	def draw_vertices(self, vertices: list[float]):
 		self.stroke_color = 'red'
@@ -56,9 +41,14 @@ class DrawingCanvas(Canvas):
 			self.curve([v, x, u])
 		self.curve([vertices[0], vertices[0] + u - centroid, u])
 
-	def reconstruct(self, vertices):
+	def reconstruct(self, vertices, shape):
 		self.reset()
-		self.connect(vertices)
+		if shape == "other":
+			return
+		elif shape == "ellipse":
+			self.ellipse(vertices)
+		else:
+			self.connect(vertices)
 
 	def on_click(self, _):
 		self.reset()
@@ -75,15 +65,18 @@ class DrawingCanvas(Canvas):
 		img.save("capture.png")
 		pimg = transform(img)
 		pimg.save("transform.png")
+
+		shape = self.classifer.classify(img)
+		print(shape)
+		if shape == "other": return
 		
-		vertices = self.regressor.vertices(img)
-		vertices = array(vertices).reshape((len(vertices)//2, 2))
+		vertices = self.regressors[shape].vertices(img)
+		vertices = np.array(vertices).reshape((len(vertices)//2, 2))
 		vertices *= img.size
 		vertices += xy
 
 		self.draw_vertices(vertices)
-		self.root.after(500, lambda: self.reconstruct(vertices))
-		print(self.classifer.classify(img))
+		self.root.after(500, lambda: self.reconstruct(vertices, shape))
 
 
 
