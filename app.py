@@ -1,10 +1,10 @@
 import numpy as np
-from canvas import Canvas
+from TkCanvas.canvas import Canvas
 from models import Classifier, Regressor, transform
 
 
 class DrawingCanvas(Canvas):
-	def __init__(self, width=700, height=700):
+	def __init__(self, width=1000, height=1000):
 		super().__init__(width, height)
 		self.points = []
 		self.register_mouse_press(self.on_click)
