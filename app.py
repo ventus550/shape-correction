@@ -1,7 +1,7 @@
 import numpy as np
 from TkCanvas.canvas import Canvas
-from models import Classifier, Regressor, transform
-
+from models import Classifier, Regressor
+from preprocessing import foo
 
 class DrawingCanvas(Canvas):
 	def __init__(self, width=1000, height=1000):
@@ -63,14 +63,13 @@ class DrawingCanvas(Canvas):
 	def on_release(self, _):
 		img, xy = self.capture()
 		img.save("capture.png")
-		pimg = transform(img)
-		pimg.save("transform.png")
+		pimg = foo(img)
 
-		shape = self.classifer.classify(img)
+		shape = self.classifer.classify(pimg)
 		print(shape)
 		if shape == "other": return
 		
-		vertices = self.regressors[shape].vertices(img)
+		vertices = self.regressors[shape].vertices(pimg)
 		vertices = np.array(vertices).reshape((len(vertices)//2, 2))
 		vertices *= img.size
 		vertices += xy
