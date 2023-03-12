@@ -1,7 +1,7 @@
 import numpy as np
 from TkCanvas.canvas import Canvas
 from models import Classifier, Regressor
-from preprocessing import foo
+from preprocessing import preprocess
 
 class DrawingCanvas(Canvas):
 	def __init__(self, width=1000, height=1000):
@@ -63,7 +63,7 @@ class DrawingCanvas(Canvas):
 	def on_release(self, _):
 		img, xy = self.capture()
 		img.save("capture.png")
-		pimg = foo(img)
+		pimg = preprocess(img)
 
 		shape = self.classifer.classify(pimg)
 		print(shape)
