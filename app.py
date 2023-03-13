@@ -62,7 +62,6 @@ class DrawingCanvas(Canvas):
 
 	def on_release(self, _):
 		img, xy = self.capture()
-		img.save("capture.png")
 		pimg = preprocess(img)
 
 		shape = self.classifer.classify(pimg)
