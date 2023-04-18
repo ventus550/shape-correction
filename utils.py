@@ -43,8 +43,8 @@ def IoU(label, pred):
 
 def dice(label, pred):
     with suppress(GEOSException):
-        y_polygon = Polygon(label)
-        pred_polygon = Polygon(pred)
+        y_polygon = Polygon(label).convex_hull
+        pred_polygon = Polygon(pred).convex_hull
         I = y_polygon.intersection(pred_polygon).area
         return 2 * I / (y_polygon.area + pred_polygon.area)
     return 0
