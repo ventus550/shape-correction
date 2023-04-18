@@ -1,11 +1,12 @@
 import keras
 import numpy as np
 import tensorflow as tf
+from typing import Union
 from pathlib import Path
 from shapely.geometry import Polygon
 
 
-def save(model, path: Path | str, metadata={}, frozen=False):
+def save(model, path: Union[Path, str], metadata={}, frozen=False):
     path = Path(path)
     if frozen:
         metadata["frozen"] = True
@@ -20,7 +21,7 @@ def save(model, path: Path | str, metadata={}, frozen=False):
     return model
 
 
-def load(path: Path | str):
+def load(path: Union[Path, str]):
     path = Path(path)
     model = keras.models.load_model(path)
     model.meta = model.get_config()["name"]
@@ -59,7 +60,7 @@ def draw_data_point(x, y, p, axs, size=70):
 class DataGenerator(keras.utils.Sequence):
     def __init__(
         self,
-        data: list[np.ndarray, np.ndarray] | Path | str,
+        data: Union[list[np.ndarray, np.ndarray], Path, str],
         transform=lambda x, y: (x, y),
         batch_size: int = 32,
         shuffle: bool = True,
