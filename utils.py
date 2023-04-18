@@ -4,6 +4,8 @@ import tensorflow as tf
 from typing import Union
 from pathlib import Path
 from shapely.geometry import Polygon
+from shapely.errors import GEOSException
+from contextlib import suppress
 
 
 def save(model, path: Union[Path, str], metadata={}, frozen=False):
@@ -29,26 +31,28 @@ def load(path: Union[Path, str]):
     return model
 
 
-def IoU(label, pred, nb_vertices=4):
-    y_polygon = Polygon(label.reshape(nb_vertices, 2))
-    pred_polygon = Polygon(pred.reshape(nb_vertices, 2))
+def IoU(label, pred):
+    with suppress(GEOSException):
+        y_polygon = Polygon(label)
+        pred_polygon = Polygon(pred)
+        I = y_polygon.intersection(pred_polygon).area
+        U = y_polygon.union(pred_polygon).area
+        return I / U
+    return 0
 
-    I = y_polygon.intersection(pred_polygon).area
-    U = y_polygon.union(pred_polygon).area
-    return I / U
 
-
-def dice(label, pred, nb_vertices=4):
-    y_polygon = Polygon(label.reshape(nb_vertices, 2))
-    pred_polygon = Polygon(pred.reshape(nb_vertices, 2))
-
-    I = y_polygon.intersection(pred_polygon).area
-    return 2 * I / (y_polygon.area + pred_polygon.area)
+def dice(label, pred):
+    with suppress(GEOSException):
+        y_polygon = Polygon(label)
+        pred_polygon = Polygon(pred)
+        I = y_polygon.intersection(pred_polygon).area
+        return 2 * I / (y_polygon.area + pred_polygon.area)
+    return 0
 
 
 def draw_data_point(x, y, p, axs, size=70):
-    y *= size
-    p *= size
+    y = y * size
+    p = p * size
     axs.imshow(
         x,
         cmap="gray",
