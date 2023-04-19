@@ -33,8 +33,8 @@ def load(path: Union[Path, str]):
 
 def IoU(label, pred):
     with suppress(GEOSException):
-        y_polygon = Polygon(label)
-        pred_polygon = Polygon(pred)
+        y_polygon = Polygon(label).convex_hull
+        pred_polygon = Polygon(pred).convex_hull
         I = y_polygon.intersection(pred_polygon).area
         U = y_polygon.union(pred_polygon).area
         return I / U
