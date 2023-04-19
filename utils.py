@@ -4,7 +4,7 @@ import tensorflow as tf
 from typing import Union
 from pathlib import Path
 from shapely.geometry import Polygon
-from shapely.errors import GEOSException
+from shapely.errors import ShapelyError
 from contextlib import suppress
 
 
@@ -31,8 +31,13 @@ def load(path: Union[Path, str]):
     return model
 
 
+def dataset(X, Y, batch=64):
+    assert len(X) == len(Y)
+    return tf.data.Dataset.from_tensor_slices((X, Y)).shuffle(len(X)).batch(batch)
+
+
 def IoU(label, pred):
-    with suppress(GEOSException):
+    with suppress(ShapelyError):
         y_polygon = Polygon(label).convex_hull
         pred_polygon = Polygon(pred).convex_hull
         I = y_polygon.intersection(pred_polygon).area
@@ -42,7 +47,7 @@ def IoU(label, pred):
 
 
 def dice(label, pred):
-    with suppress(GEOSException):
+    with suppress(ShapelyError):
         y_polygon = Polygon(label).convex_hull
         pred_polygon = Polygon(pred).convex_hull
         I = y_polygon.intersection(pred_polygon).area
