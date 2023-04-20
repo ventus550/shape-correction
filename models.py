@@ -3,12 +3,12 @@ import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import tensorflow as tf
 from numpy import argmax, ndarray
+import utils
 
 
 class ModelInterface:
     def __init__(self, path):
-        self.model = tf.keras.models.load_model(path, compile=False)
-        self.model.compile()
+        self.model = utils.load(path)
 
     @staticmethod
     def img2tensor(image: ndarray):

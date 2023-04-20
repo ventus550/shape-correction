@@ -11,7 +11,7 @@ class DrawingCanvas(Canvas):
         self.register_mouse_press(self.on_click)
         self.register_mouse_move(self.on_move)
         self.register_mouse_release(self.on_release)
-        self.classifer = Classifier("models/classifier")
+        self.classifer = Classifier("models/c3xConvDrop250.h5")
         self.regressors = {
             "rectangle": Regressor("models/rectangle_regressor"),
             "ellipse": Regressor("models/ellipse_regressor"),
