@@ -12,7 +12,9 @@ def save(model, path: Union[Path, str], metadata={}, frozen=False):
     path = Path(path)
     if frozen:
         metadata["frozen"] = True
-        model = keras.models.Model(inputs=model.input, outputs=model.output)
+        model = keras.models.Model(
+            inputs=model.input, outputs=model.output, name=model.name
+        )
         model.trainable = False
     weights = model.get_weights()
     config = model.get_config()
